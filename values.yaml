@@ -1,0 +1,13 @@
+replica: 2
+
+image:
+  name: suleymanakturk/devops-project
+  tag: 770cae23
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 500Mi
+  requests:
+    cpu: 125m
+    memory: 125Mi

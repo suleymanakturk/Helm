@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: python-app-database
+spec:
+  selector:
+    matchLabels:
+      app: python-app-database
+  serviceName: "personel-app-database"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: python-app-database
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "Sifreniz123" # Gerçek projede bunu Secret'tan çekmelisiniz
+        - name: MYSQL_DATABASE
+          value: "personel-app-database"
+        - name: MYSQL_USER
+          value: "personel-app-user"
+        - name: MYSQL_PASSWORD
+          value: "personel-app-pass"
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "longhorn" # Longhorn StorageClass kullanımı
+      resources:
+        requests:
+          storage: 5Gi
