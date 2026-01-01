@@ -1,0 +1,82 @@
+{{- define "test-helm-chart.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/* 
+
+Yukarıda ki örnekte eğer values.yaml dosyasında nameOverride var ise onu kullanır yok ise Chart.Name değerini kullanır. "trunc 63" eğer bu isim 63 karakterden büyük ise 63. karakterden sonrası siler, trimSuffix ise kesilen ismin sonunda - işareti var ise keser.  
+
+*/}}
+
+
+{{- define "test-helm-chart.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- $name := default .Chart.Name .Values.nameOverride }}
+{{- if contains $name .Release.Name }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+1- Eğer values.yaml dosyasında fullnameOverride  var ise onu kullanır. 
+2- Eğer boş ise $name değişkeni oluşturur ve eğer nameOverride var ise name=nameOverride değeri yok ise default olarak name=.Chart.Name değeri olur. 
+3- Eğer oluşturduğumuz $name (uygulama adı), .Release.Name (helm install sırasında verdiğiniz isim) içerisinde zaten geçiyorsa; sadece .Release.Name'i kullan. Eğer release adınız my-wordpress ve chart adınız da wordpress ise, sonuçta my-wordpress-wordpress gibi çirkin ve gereksiz bir isim oluşmasını engeller. Sadece my-wordpress der geçer.
+4- Eğer yukarıdaki durumların hiçbiri tutmuyorsa (yani release adı uygulama adını içermiyorsa), ikisini birleştir: [Release Adı]-[Uygulama Adı].  Örnek: Release adınız prod ve uygulama adınız frontend ise, sonuç: prod-frontend olur.
+
+*/}}
+
+
+{{- define "test-helm-chart.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+ test-helm.chart.chart değişkeni ".ChartName-.Chart.Version" değerini alır. replace + işareti - işareti ile değiştirir. 
+ */}}
+
+
+{{- define "test-helm-chart.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "test-helm-chart.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+include bir değişkenin değerini başka bir yerde kullanmak için kullanılır. 
+test-helm-chart.name değeri yukarıda tanımlanmıştır.
+*/}}
+
+
+{{- define "test-helm-chart.labels" -}}
+helm.sh/chart: {{ include "test-helm-chart.chart" . }}
+{{ include "test-helm-chart.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+beğer Chart.yaml dosyasında AppVersion var ise onu kullanır. Bu değer genellikle integer olur. quote bu değeri stringe dönüştürür.
+.Release.Service , helm ile oluşturulduğu için helm olur.
+Bu şekilde birden fazla label kullanımında kod tekrarını azaltır.
+*/}}
+
+
+{{- define "test-helm-chart.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "test-helm-chart.fullname" .) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+
+{{/*
+Eğer serviceAccountName.create değeri true ise  ve serviceAccount.name değeri var ise o değer kullanılır. Eğer true ve yok ise yukarıda tanımlanan "test-helm-chart.fullname" değer kullanılır.
+Eğer serviceAccountName.create false ise ve serviceAccountName değeri var ise o değer kullanılır. Eğer false ve serviceAccountName değeri yokse kubernetesin default serviceAccountu kullanılır.
+*/}}
